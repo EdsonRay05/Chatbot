@@ -3,7 +3,7 @@ import streamlit as st
 from perplexity import Perplexity
 from dotenv import load_dotenv
 
-# Load environment variables (optional, for security)
+# Load environment variables (optional, for local dev)
 load_dotenv()
 
 # Page config
@@ -29,20 +29,29 @@ if "messages" not in st.session_state:
 if "client" not in st.session_state:
     st.session_state.client = None
 
+# Resolve API key: Streamlit secrets (cloud) → env (local)
+def get_api_key():
+    try:
+        return st.secrets["PERPLEXITY_API_KEY"]
+    except Exception:
+        return os.getenv("PERPLEXITY_API_KEY", "")
+
 # API Key input (sidebar)
 with st.sidebar:
     st.title("🔑 API Settings")
+
+    # Pre-fill from secrets/env but still editable for debugging
     api_key = st.text_input(
         "Perplexity API Key",
         type="password",
-        value=os.getenv("PERPLEXITY_API_KEY", "")
+        value=get_api_key()
     )
-    
+
     model = st.selectbox(
         "Model",
         ["sonar-pro", "sonar-small", "llama-3.1-sonar-large-128k-online"]
     )
-    
+
     if st.button("Connect", type="primary"):
         if api_key:
             try:
@@ -79,7 +88,7 @@ if prompt := st.chat_input("Type your message..."):
             sources_placeholder = st.empty()  # for sources under the answer
             full_response = ""
             collected_sources = []  # will hold search_results from stream
-            
+
             if st.session_state.client:
                 try:
                     # Stream the response so text appears token by token
@@ -101,7 +110,6 @@ if prompt := st.chat_input("Type your message..."):
                             message_placeholder.markdown(full_response + "▌")
 
                         # Grab search_results once they arrive in the stream
-                        # (Perplexity sends them in the final chunk). [web:57][web:82]
                         if hasattr(chunk, "search_results") and chunk.search_results:
                             collected_sources = chunk.search_results
 
